@@ -227,4 +227,10 @@
             </build>
         </profile>
     </profiles>
+    <distributionManagement>
+        <repository>
+            <id>gitea</id>
+            <url>https://git.reddog.top/api/packages/public/maven</url>
+        </repository>
+    </distributionManagement>
 </project>

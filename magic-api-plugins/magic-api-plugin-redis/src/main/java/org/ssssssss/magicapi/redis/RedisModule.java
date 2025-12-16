@@ -122,7 +122,7 @@ public class RedisModule implements DynamicMethod {
 	}
 	private Object execute(RedisConnection connection,Method method, List<Object> parameters){
 		if (method.getParameterTypes().length > 0 && method.getParameterTypes()[0] == byte[][].class) {
-			return ReflectionUtils.invokeMethod(method, connection, parameters.stream().map(this::serializer).toArray(byte[][]::new));
+			return ReflectionUtils.invokeMethod(method, connection, (Object) parameters.stream().map(this::serializer).toArray(byte[][]::new));
 		} else if (parameters.size() == 0){
 			return ReflectionUtils.invokeMethod(method, connection);
 		}
