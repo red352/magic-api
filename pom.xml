@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.ssssssss</groupId>
     <artifactId>magic-api-parent</artifactId>
-    <version>2.2.2</version>
+    <version>${magic-api.version}</version>
     <packaging>pom</packaging>
     <name>magic-api-parent</name>
     <description>auto generate http api</description>
@@ -29,6 +29,7 @@
         <developerConnection>scm:git:https://gitee.com/ssssssss-team/magic-api.git</developerConnection>
     </scm>
     <properties>
+        <magic-api.version>2.2.2</magic-api.version>
         <spring-boot.version>2.4.5</spring-boot.version>
         <magic-script.version>1.9.0</magic-script.version>
         <commons-compress.version>1.21</commons-compress.version>
@@ -63,22 +64,22 @@
             <dependency>
                 <groupId>org.ssssssss</groupId>
                 <artifactId>magic-api</artifactId>
-                <version>${project.version}</version>
+                <version>${magic-api.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.ssssssss</groupId>
                 <artifactId>magic-api-servlet</artifactId>
-                <version>${project.version}</version>
+                <version>${magic-api.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.ssssssss</groupId>
                 <artifactId>magic-api-servlet-javaee</artifactId>
-                <version>${project.version}</version>
+                <version>${magic-api.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.ssssssss</groupId>
                 <artifactId>magic-api-servlet-jakarta</artifactId>
-                <version>${project.version}</version>
+                <version>${magic-api.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.ssssssss</groupId>
