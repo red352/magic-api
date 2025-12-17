@@ -1,11 +1,15 @@
 package org.ssssssss.magicapi.redis;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.redis.connection.DefaultStringRedisConnection;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisPipelineException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.util.Pair;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 import org.ssssssss.magicapi.core.annotation.MagicModule;
 import org.ssssssss.script.functions.DynamicMethod;
@@ -14,6 +18,8 @@ import org.ssssssss.script.reflection.JavaReflection;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * redis模块
@@ -26,6 +32,8 @@ public class RedisModule implements DynamicMethod {
 	private final StringRedisTemplate redisTemplate;
 
 	private final boolean isRedisson;
+
+    private final Logger log = LoggerFactory.getLogger(RedisModule.class);
 
 	public RedisModule(RedisConnectionFactory connectionFactory) {
 		this.redisTemplate = new StringRedisTemplate(connectionFactory);
@@ -122,11 +130,64 @@ public class RedisModule implements DynamicMethod {
 	}
 	private Object execute(RedisConnection connection,Method method, List<Object> parameters){
 		if (method.getParameterTypes().length > 0 && method.getParameterTypes()[0] == byte[][].class) {
+			// 调用第一个参数是 Byte数组 的可变长的参数方法
 			return ReflectionUtils.invokeMethod(method, connection, (Object) parameters.stream().map(this::serializer).toArray(byte[][]::new));
-		} else if (parameters.size() == 0){
+		} else if (parameters.isEmpty()){
+			// 调用无参方法
 			return ReflectionUtils.invokeMethod(method, connection);
 		}
-		return ReflectionUtils.invokeMethod(method, connection, parameters.stream().map(this::serializerForRedisson).toArray());
+		// 数组和
+		return ReflectionUtils.invokeMethod(method, connection, serializerForRedissonFix(method, parameters));
 	}
+
+    /**
+     * 解决复杂类型的参数转换支持
+     *
+     * @param method
+     * @param parameters
+     * @return
+     */
+    private Object[] serializerForRedissonFix(Method method, List<Object> parameters) {
+        Class<?>[] parameterTypes = method.getParameterTypes();
+        if (parameterTypes.length != parameters.size()) {
+            log.error("Redisson方法参数不正确,methodName:{},parameterTypes:[{}]", getMethodSignature(method, parameterTypes), parameters.stream().map(i -> i.getClass().getName()).collect(Collectors.joining(",")));
+            throw new IllegalArgumentException("Redisson 调用方法参数不正确");
+        }
+        return IntStream.range(0, method.getParameterCount())
+                .mapToObj(index -> Pair.of(index, parameterTypes[index]))
+                .map(indexedObj -> {
+                    Integer index = indexedObj.getFirst();
+                    Class<?> methodParamType = indexedObj.getSecond();
+                    Object o = parameters.get(index);
+                    if (methodParamType == byte[][].class) {
+                        if (o instanceof Collection) {
+                            Collection<?> collection = (Collection<?>) o;
+                            return collection.stream().map(this::serializer).toArray(byte[][]::new);
+                        } else {
+                            return new byte[][]{serializer(o)};
+                        }
+                    }
+                    if (methodParamType == byte[].class) {
+                        return serializer(o);
+                    }
+                    if (ClassUtils.isPrimitiveOrWrapper(methodParamType)) {
+                        return o;
+                    }
+                    log.error("Redisson方法参数类型未支持序列化,supposed:{},input:{}", methodParamType.getName(), o.getClass().getName());
+                    throw new UnsupportedOperationException("Redisson 方法调用的参数类型 暂未支持");
+                })
+                .toArray();
+    }
+
+    public String getMethodSignature(Method method, Class<?>[] parameterTypes) {
+        String className = method.getDeclaringClass().getName();
+        String methodName = method.getName();
+        // 获取参数类型并转换为逗号分隔的字符串
+        String params = Arrays.stream(parameterTypes)
+                .map(Class::getSimpleName) // 或者用 getName() 获取全路径类型
+                .collect(Collectors.joining(", "));
+
+        return String.format("%s.%s(%s)", className, methodName, params);
+    }
 
 }
