@@ -2,6 +2,7 @@ package org.ssssssss.magicapi.redis;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ResolvableType;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.redis.connection.DefaultStringRedisConnection;
 import org.springframework.data.redis.connection.RedisConnection;
@@ -172,6 +173,21 @@ public class RedisModule implements DynamicMethod {
                     }
                     if (ClassUtils.isPrimitiveOrWrapper(methodParamType)) {
                         return o;
+                    }
+                    if (ResolvableType.forClass(methodParamType).isAssignableFrom(ResolvableType.forClassWithGenerics(Map.class, byte[].class, byte[].class))) {
+                        if (o instanceof Map) {
+                            return Optional.of(o)
+                                    .map(i -> ((Map<?, ?>) i))
+                                    .map(map -> map.entrySet()
+                                            .stream()
+                                            .map(entry -> new AbstractMap.SimpleEntry<>(serializer(entry.getKey()), serializer(entry.getValue())))
+                                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new))
+                                    )
+                                    .orElseThrow(() -> new IllegalArgumentException("输入参数为空"));
+                        } else {
+                            log.error("Redisson方法参数类型不正确,supposed:{},input:[{}]", "Map<byte[],byte[]>", o.getClass().getName());
+                            throw new IllegalArgumentException("参数类型不符合");
+                        }
                     }
                     log.error("Redisson方法参数类型未支持序列化,supposed:{},input:{}", methodParamType.getName(), o.getClass().getName());
                     throw new UnsupportedOperationException("Redisson 方法调用的参数类型 暂未支持");
