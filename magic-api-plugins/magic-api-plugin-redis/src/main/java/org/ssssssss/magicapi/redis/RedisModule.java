@@ -67,8 +67,8 @@ public class RedisModule implements DynamicMethod {
 			if (value instanceof byte[]) {
 				return this.redisTemplate.getStringSerializer().deserialize((byte[]) value);
 			}
-			if (value instanceof List) {
-				List<Object> valueList = (List<Object>) value;
+			if (value instanceof Collection) {
+				Collection<Object> valueList = (Collection<Object>) value;
 				List<Object> resultList = new ArrayList<>(valueList.size());
 				for (Object val : valueList) {
 					resultList.add(deserialize(val));
