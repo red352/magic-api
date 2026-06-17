@@ -1,0 +1,4 @@
+interface:
+  display_name: "Magic Script"
+  short_description: "Write and review magic-api scripts"
+  default_prompt: "Write or review magic-api magic-script code using the bundled syntax and API references."

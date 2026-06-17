@@ -1,0 +1,592 @@
+{
+  "version": 1,
+  "magicApiDocVersion": "2.2.x",
+  "updatedAt": "2026-06-17",
+  "keywords": [
+    {
+      "label": "var",
+      "detail": "定义变量",
+      "documentation": "定义 magic-script 局部变量。"
+    },
+    {
+      "label": "if",
+      "detail": "条件分支",
+      "documentation": "条件分支语句。"
+    },
+    {
+      "label": "else",
+      "detail": "条件分支",
+      "documentation": "与 if 配合使用。"
+    },
+    {
+      "label": "for",
+      "detail": "循环",
+      "documentation": "遍历集合或范围。"
+    },
+    {
+      "label": "in",
+      "detail": "循环关键字",
+      "documentation": "用于 for item in items。"
+    },
+    {
+      "label": "while",
+      "detail": "循环",
+      "documentation": "条件循环。"
+    },
+    {
+      "label": "continue",
+      "detail": "循环控制",
+      "documentation": "跳过当前循环。"
+    },
+    {
+      "label": "break",
+      "detail": "循环控制",
+      "documentation": "结束当前循环。"
+    },
+    {
+      "label": "return",
+      "detail": "返回",
+      "documentation": "返回脚本结果。"
+    },
+    {
+      "label": "exit",
+      "detail": "立即退出",
+      "documentation": "立即结束脚本并返回自定义结果。"
+    },
+    {
+      "label": "assert",
+      "detail": "参数校验",
+      "documentation": "断言条件，不满足时抛出校验错误。"
+    },
+    {
+      "label": "instanceof",
+      "detail": "类型判断",
+      "documentation": "判断对象类型。"
+    },
+    {
+      "label": "try",
+      "detail": "异常处理",
+      "documentation": "try/catch/finally 异常处理。"
+    },
+    {
+      "label": "catch",
+      "detail": "异常处理",
+      "documentation": "捕获异常。"
+    },
+    {
+      "label": "finally",
+      "detail": "异常处理",
+      "documentation": "最终执行代码块。"
+    },
+    {
+      "label": "throw",
+      "detail": "抛出异常",
+      "documentation": "抛出异常对象。"
+    },
+    {
+      "label": "import",
+      "detail": "导入",
+      "documentation": "导入 Java 类或模块。"
+    },
+    {
+      "label": "as",
+      "detail": "别名",
+      "documentation": "为 import 目标设置别名。"
+    },
+    {
+      "label": "new",
+      "detail": "创建对象",
+      "documentation": "创建 Java 对象或脚本对象。"
+    },
+    {
+      "label": "async",
+      "detail": "异步块",
+      "documentation": "启动异步执行块。"
+    },
+    {
+      "label": "true",
+      "detail": "布尔值",
+      "documentation": "true 字面量。"
+    },
+    {
+      "label": "false",
+      "detail": "布尔值",
+      "documentation": "false 字面量。"
+    },
+    {
+      "label": "null",
+      "detail": "空值",
+      "documentation": "null 字面量。"
+    }
+  ],
+  "operators": [
+    {
+      "label": "?.",
+      "detail": "可选链",
+      "documentation": "对象为空时短路返回 null。"
+    },
+    {
+      "label": "::",
+      "detail": "类型转换",
+      "documentation": "执行 magic-script 类型转换，例如 value::int。"
+    },
+    {
+      "label": "=>",
+      "detail": "Lambda",
+      "documentation": "Lambda 表达式。"
+    },
+    {
+      "label": "->",
+      "detail": "Lambda",
+      "documentation": "Lambda 表达式。"
+    },
+    {
+      "label": "..",
+      "detail": "范围",
+      "documentation": "范围表达式，例如 1..10。"
+    }
+  ],
+  "requestRoots": [
+    "body",
+    "path",
+    "query",
+    "header",
+    "cookie",
+    "session",
+    "request"
+  ],
+  "modules": {
+    "db": {
+      "detail": "默认数据库模块",
+      "documentation": "magic-api 默认导入的数据库模块。",
+      "methods": [
+        {
+          "label": "select",
+          "signature": "db.select(sql)",
+          "detail": "查询多行",
+          "documentation": "执行查询并返回多行数据。",
+          "example": "db.select(\"\"\"\nselect * from sys_user where status = #{status}\n\"\"\")",
+          "parameters": [
+            "sql"
+          ]
+        },
+        {
+          "label": "selectInt",
+          "signature": "db.selectInt(sql)",
+          "detail": "查询整数",
+          "documentation": "执行查询并返回整数。",
+          "parameters": [
+            "sql"
+          ]
+        },
+        {
+          "label": "selectOne",
+          "signature": "db.selectOne(sql)",
+          "detail": "查询单行",
+          "documentation": "执行查询并返回一行数据。",
+          "example": "db.selectOne(\"\"\"\nselect * from sys_user where id = #{id}\n\"\"\")",
+          "parameters": [
+            "sql"
+          ]
+        },
+        {
+          "label": "selectValue",
+          "signature": "db.selectValue(sql)",
+          "detail": "查询单值",
+          "documentation": "执行查询并返回单个值。",
+          "parameters": [
+            "sql"
+          ]
+        },
+        {
+          "label": "page",
+          "signature": "db.page(sql, limit?, offset?)",
+          "detail": "分页查询",
+          "documentation": "执行分页查询。",
+          "example": "db.page(\"\"\"\nselect * from sys_user where 1 = 1\n\"\"\")",
+          "parameters": [
+            "sql",
+            "limit",
+            "offset"
+          ]
+        },
+        {
+          "label": "update",
+          "signature": "db.update(sql)",
+          "detail": "更新 SQL",
+          "documentation": "执行 insert/update/delete SQL 并返回影响行数。",
+          "example": "db.update(\"\"\"\nupdate sys_user set name = #{name} where id = #{id}\n\"\"\")",
+          "parameters": [
+            "sql"
+          ]
+        },
+        {
+          "label": "insert",
+          "signature": "db.insert(sql, id?)",
+          "detail": "插入 SQL",
+          "documentation": "执行 insert SQL，可返回主键。",
+          "parameters": [
+            "sql",
+            "id"
+          ]
+        },
+        {
+          "label": "call",
+          "signature": "db.call(sql)",
+          "detail": "调用存储过程",
+          "documentation": "执行存储过程调用。",
+          "parameters": [
+            "sql"
+          ]
+        },
+        {
+          "label": "batchUpdate",
+          "signature": "db.batchUpdate(sql, batchArgs)",
+          "detail": "批量更新",
+          "documentation": "执行批量更新。",
+          "parameters": [
+            "sql",
+            "batchArgs"
+          ]
+        },
+        {
+          "label": "cache",
+          "signature": "db.cache(cacheName, ttl?)",
+          "detail": "查询缓存",
+          "documentation": "开启链式查询缓存。",
+          "parameters": [
+            "cacheName",
+            "ttl"
+          ]
+        },
+        {
+          "label": "deleteCache",
+          "signature": "db.deleteCache(cacheName)",
+          "detail": "删除缓存",
+          "documentation": "删除指定缓存。",
+          "parameters": [
+            "cacheName"
+          ]
+        },
+        {
+          "label": "transaction",
+          "signature": "db.transaction(callback?)",
+          "detail": "事务",
+          "documentation": "在事务中执行回调或返回事务对象。",
+          "example": "db.transaction(() => {\n  db.update(sql)\n  return db.selectOne(querySql)\n})",
+          "parameters": [
+            "callback"
+          ]
+        }
+      ]
+    },
+    "http": {
+      "detail": "HTTP 模块",
+      "documentation": "发送 HTTP 请求。",
+      "methods": [
+        {
+          "label": "get",
+          "signature": "http.get(url)",
+          "detail": "GET 请求",
+          "documentation": "发送 GET 请求。",
+          "parameters": [
+            "url"
+          ]
+        },
+        {
+          "label": "post",
+          "signature": "http.post(url, body?)",
+          "detail": "POST 请求",
+          "documentation": "发送 POST 请求。",
+          "parameters": [
+            "url",
+            "body"
+          ]
+        },
+        {
+          "label": "put",
+          "signature": "http.put(url, body?)",
+          "detail": "PUT 请求",
+          "documentation": "发送 PUT 请求。",
+          "parameters": [
+            "url",
+            "body"
+          ]
+        },
+        {
+          "label": "delete",
+          "signature": "http.delete(url)",
+          "detail": "DELETE 请求",
+          "documentation": "发送 DELETE 请求。",
+          "parameters": [
+            "url"
+          ]
+        },
+        {
+          "label": "patch",
+          "signature": "http.patch(url, body?)",
+          "detail": "PATCH 请求",
+          "documentation": "发送 PATCH 请求。",
+          "parameters": [
+            "url",
+            "body"
+          ]
+        },
+        {
+          "label": "header",
+          "signature": "http.header(name, value)",
+          "detail": "设置请求头",
+          "documentation": "链式设置请求头。",
+          "parameters": [
+            "name",
+            "value"
+          ]
+        },
+        {
+          "label": "body",
+          "signature": "http.body(value)",
+          "detail": "设置请求体",
+          "documentation": "链式设置请求体。",
+          "parameters": [
+            "value"
+          ]
+        },
+        {
+          "label": "execute",
+          "signature": "http.execute()",
+          "detail": "执行请求",
+          "documentation": "执行链式 HTTP 请求。",
+          "parameters": []
+        }
+      ]
+    },
+    "request": {
+      "detail": "请求上下文",
+      "documentation": "访问当前请求信息。",
+      "methods": [
+        {
+          "label": "get",
+          "signature": "request.get(name)",
+          "detail": "读取参数",
+          "documentation": "读取请求参数。",
+          "parameters": [
+            "name"
+          ]
+        },
+        {
+          "label": "getHeader",
+          "signature": "request.getHeader(name)",
+          "detail": "读取 Header",
+          "documentation": "读取请求头。",
+          "parameters": [
+            "name"
+          ]
+        },
+        {
+          "label": "getCookie",
+          "signature": "request.getCookie(name)",
+          "detail": "读取 Cookie",
+          "documentation": "读取 Cookie。",
+          "parameters": [
+            "name"
+          ]
+        },
+        {
+          "label": "getSession",
+          "signature": "request.getSession(name)",
+          "detail": "读取 Session",
+          "documentation": "读取 Session。",
+          "parameters": [
+            "name"
+          ]
+        }
+      ]
+    },
+    "response": {
+      "detail": "响应模块",
+      "documentation": "设置 HTTP 响应。",
+      "methods": [
+        {
+          "label": "json",
+          "signature": "response.json(value)",
+          "detail": "JSON 响应",
+          "documentation": "返回 JSON。",
+          "parameters": [
+            "value"
+          ]
+        },
+        {
+          "label": "text",
+          "signature": "response.text(value)",
+          "detail": "文本响应",
+          "documentation": "返回文本。",
+          "parameters": [
+            "value"
+          ]
+        },
+        {
+          "label": "redirect",
+          "signature": "response.redirect(url)",
+          "detail": "重定向",
+          "documentation": "返回重定向响应。",
+          "parameters": [
+            "url"
+          ]
+        },
+        {
+          "label": "download",
+          "signature": "response.download(value)",
+          "detail": "下载响应",
+          "documentation": "返回下载响应。",
+          "parameters": [
+            "value"
+          ]
+        },
+        {
+          "label": "cookie",
+          "signature": "response.cookie(name, value)",
+          "detail": "设置 Cookie",
+          "documentation": "设置响应 Cookie。",
+          "parameters": [
+            "name",
+            "value"
+          ]
+        },
+        {
+          "label": "header",
+          "signature": "response.header(name, value)",
+          "detail": "设置 Header",
+          "documentation": "设置响应 Header。",
+          "parameters": [
+            "name",
+            "value"
+          ]
+        }
+      ]
+    },
+    "log": {
+      "detail": "日志模块",
+      "documentation": "输出日志。",
+      "methods": [
+        {
+          "label": "debug",
+          "signature": "log.debug(value)",
+          "detail": "debug 日志",
+          "documentation": "输出 debug 日志。",
+          "parameters": [
+            "value"
+          ]
+        },
+        {
+          "label": "info",
+          "signature": "log.info(value)",
+          "detail": "info 日志",
+          "documentation": "输出 info 日志。",
+          "parameters": [
+            "value"
+          ]
+        },
+        {
+          "label": "warn",
+          "signature": "log.warn(value)",
+          "detail": "warn 日志",
+          "documentation": "输出 warn 日志。",
+          "parameters": [
+            "value"
+          ]
+        },
+        {
+          "label": "error",
+          "signature": "log.error(value)",
+          "detail": "error 日志",
+          "documentation": "输出 error 日志。",
+          "parameters": [
+            "value"
+          ]
+        }
+      ]
+    },
+    "env": {
+      "detail": "环境变量模块",
+      "documentation": "读取配置或环境变量。",
+      "methods": [
+        {
+          "label": "get",
+          "signature": "env.get(name)",
+          "detail": "读取环境值",
+          "documentation": "读取环境值。",
+          "parameters": [
+            "name"
+          ]
+        },
+        {
+          "label": "getProperty",
+          "signature": "env.getProperty(name)",
+          "detail": "读取配置",
+          "documentation": "读取配置属性。",
+          "parameters": [
+            "name"
+          ]
+        }
+      ]
+    }
+  },
+  "functions": [
+    {
+      "label": "now",
+      "signature": "now()",
+      "detail": "当前时间",
+      "documentation": "返回当前时间。",
+      "parameters": []
+    },
+    {
+      "label": "uuid",
+      "signature": "uuid()",
+      "detail": "UUID",
+      "documentation": "生成 UUID。",
+      "parameters": []
+    }
+  ],
+  "snippets": [
+    {
+      "label": "if",
+      "body": "if (${1:condition}) {\n  ${0}\n}",
+      "detail": "if 代码块"
+    },
+    {
+      "label": "for",
+      "body": "for (${1:item} in ${2:items}) {\n  ${0}\n}",
+      "detail": "for in 循环"
+    },
+    {
+      "label": "while",
+      "body": "while (${1:condition}) {\n  ${0}\n}",
+      "detail": "while 循环"
+    },
+    {
+      "label": "try",
+      "body": "try {\n  ${1}\n} catch (${2:e}) {\n  log.error(${2:e});\n  ${0}\n}",
+      "detail": "try/catch"
+    },
+    {
+      "label": "assert",
+      "body": "assert ${1:condition}, '${2:message}'",
+      "detail": "参数断言"
+    },
+    {
+      "label": "selectOne",
+      "body": "db.selectOne(\"\"\"\nselect *\nfrom ${1:table}\nwhere id = #{${2:id}}\n\"\"\")",
+      "detail": "查询单行"
+    },
+    {
+      "label": "page",
+      "body": "db.page(\"\"\"\nselect *\nfrom ${1:table}\nwhere 1 = 1\n\"\"\")",
+      "detail": "分页查询"
+    },
+    {
+      "label": "transaction",
+      "body": "db.transaction(() => {\n  ${1}\n  return ${0};\n})",
+      "detail": "事务代码块"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "note": "This YAML source intentionally uses JSON syntax, which is valid YAML. Run scripts/update-language-data.js to regenerate src/language-data/generated/core.json.",
+  "source": "Curated from magic-api script/API/config docs and the local magic-script 1.9.0 parser behavior.",
+  "generated": "../generated/core.json"
+}

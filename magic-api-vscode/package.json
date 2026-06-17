@@ -1,0 +1,250 @@
+{
+  "name": "magic-api-vscode",
+  "displayName": "magic-api",
+  "description": "在 Visual Studio Code 中编辑 magic-api 资源。",
+  "version": "1.0.0",
+  "publisher": "reddog",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/red352/magic-api.git",
+    "directory": "magic-api-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/red352/magic-api/issues"
+  },
+  "preview": true,
+  "keywords": [
+    "magic-api",
+    "magic-script",
+    "api",
+    "low-code",
+    "vscode",
+    "formatter",
+    "completion"
+  ],
+  "galleryBanner": {
+    "color": "#2C2C32",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:magicApiExplorer",
+    "onCommand:magicApi.configureServer",
+    "onCommand:magicApi.login",
+    "onCommand:magicApi.setToken",
+    "onCommand:magicApi.clearToken",
+    "onCommand:magicApi.refreshResources",
+    "onCommand:magicApi.syncWorkspace",
+    "onCommand:magicApi.pullWorkspace",
+    "onCommand:magicApi.pushCurrentLocalFile",
+    "onCommand:magicApi.pushWorkspace",
+    "onCommand:magicApi.openMetadataEditor",
+    "onCommand:magicApi.runCurrentApi",
+    "onCommand:magicApi.installAiSkills",
+    "onCommand:magicApi.openInWorkbench",
+    "onLanguage:magic-script"
+  ],
+  "main": "./extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run check && npm run test:language",
+    "check": "node scripts/check-js.js",
+    "test:language": "node scripts/test-language.js",
+    "language-data": "node scripts/update-language-data.js",
+    "package": "npx --yes @vscode/vsce@3.9.2 package --no-dependencies --no-yarn",
+    "publish": "npx --yes @vscode/vsce@3.9.2 publish --no-dependencies --no-yarn"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "3.9.2"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "magic-api",
+      "properties": {
+        "magicApi.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:9999/magic/web",
+          "description": "magic-api Web 工作台地址，例如 http://localhost:9999/magic/web。"
+        },
+        "magicApi.workspaceDir": {
+          "type": "string",
+          "default": ".magic-api-workspace",
+          "description": "magic-api 本地镜像目录。相对路径会放在当前 VS Code 工作区下，绝对路径会直接使用。"
+        },
+        "magicApi.syncOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "保存本地镜像文件时自动推送到 magic-api 服务端。"
+        },
+        "magicApi.autoPullOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "从资源树打开资源时，如果本地镜像不存在则自动拉取。"
+        },
+        "magicApi.checkConflicts": {
+          "type": "boolean",
+          "default": true,
+          "description": "推送前检查服务端资源是否在本地拉取后被其他客户端修改。"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "magicApi.configureServer",
+        "title": "magic-api: 配置服务地址"
+      },
+      {
+        "command": "magicApi.login",
+        "title": "magic-api: 登录"
+      },
+      {
+        "command": "magicApi.setToken",
+        "title": "magic-api: 手动设置 Magic-Token"
+      },
+      {
+        "command": "magicApi.clearToken",
+        "title": "magic-api: 清除登录状态"
+      },
+      {
+        "command": "magicApi.refreshResources",
+        "title": "magic-api: 刷新资源",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "magicApi.syncWorkspace",
+        "title": "magic-api: 增量同步本地工作区",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "magicApi.pullWorkspace",
+        "title": "magic-api: 全量重新拉取本地工作区",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "magicApi.pushCurrentLocalFile",
+        "title": "magic-api: 推送当前本地文件"
+      },
+      {
+        "command": "magicApi.pushWorkspace",
+        "title": "magic-api: 推送本地全部变更",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "magicApi.openMetadataEditor",
+        "title": "magic-api: 编辑资源信息"
+      },
+      {
+        "command": "magicApi.openResource",
+        "title": "magic-api: 打开资源"
+      },
+      {
+        "command": "magicApi.saveCurrentResource",
+        "title": "magic-api: 保存当前资源"
+      },
+      {
+        "command": "magicApi.runCurrentApi",
+        "title": "magic-api: 运行当前 API"
+      },
+      {
+        "command": "magicApi.showCurrentMetadata",
+        "title": "magic-api: 查看当前资源元数据"
+      },
+      {
+        "command": "magicApi.openInWorkbench",
+        "title": "magic-api: 打开 Web 工作台"
+      },
+      {
+        "command": "magicApi.installAiSkills",
+        "title": "magic-api: 安装 AI Skills 到工作区"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "magicApi.syncWorkspace",
+          "when": "view == magicApiExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "magicApi.pullWorkspace",
+          "when": "view == magicApiExplorer",
+          "group": "2_sync"
+        },
+        {
+          "command": "magicApi.pushWorkspace",
+          "when": "view == magicApiExplorer",
+          "group": "2_sync"
+        },
+        {
+          "command": "magicApi.refreshResources",
+          "when": "view == magicApiExplorer",
+          "group": "3_view"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "magicApi.openResource",
+          "when": "view == magicApiExplorer && viewItem == magicApiFile",
+          "group": "inline"
+        },
+        {
+          "command": "magicApi.runCurrentApi",
+          "when": "view == magicApiExplorer && viewItem == magicApiFile",
+          "group": "2_run"
+        },
+        {
+          "command": "magicApi.openMetadataEditor",
+          "when": "view == magicApiExplorer && viewItem == magicApiFile",
+          "group": "3_edit"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "magicApi.runCurrentApi",
+          "when": "magicApi.localFileActive",
+          "group": "navigation"
+        },
+        {
+          "command": "magicApi.openMetadataEditor",
+          "when": "magicApi.localFileActive",
+          "group": "navigation"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "magicApiExplorer",
+          "name": "magic-api"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "magic-script",
+        "aliases": [
+          "Magic Script",
+          "magic-script"
+        ],
+        "extensions": [
+          ".ms"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "magic-script",
+        "scopeName": "source.magic-script",
+        "path": "./syntaxes/magic-script.tmLanguage.json"
+      }
+    ]
+  }
+}

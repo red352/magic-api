@@ -1,0 +1,9 @@
+.vscode/**
+.gitignore
+node_modules/**
+*.vsix
+*.log
+PUBLISHING.md
+scripts/**
+test/**
+src/language-data/source/**
