@@ -16,6 +16,13 @@ class RuntimeIndex {
     this.javaClassIndex = undefined;
   }
 
+  clearCache() {
+    this.failureLogged = false;
+    this.classesTextFailureLogged = false;
+    this.classDetailFailureLogged = false;
+    this.javaClassIndex = undefined;
+  }
+
   async getClasses() {
     try {
       return await this.client.getClasses();

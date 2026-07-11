@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0
+
+- 本地镜像升级为 manifest v3，脚本资源使用同目录 `.ms + .magic.json` 资源对，并记录离线分组计划与分组新增 journal。
+- 支持发现并新增本地资源，服务端生成 canonical ID 后再写入 manifest。
+- 支持批量确认删除本地缺失资源，并仅在详情接口明确确认不存在后清理 manifest。
+- 资源管理器始终显示空的 API、Functions、Tasks 根节点，增加顶部新增按钮、本地待同步分组/资源标记和文件右键删除资源。
+- API、Function、Task 与动态 Script 新增表单拆分嵌套分组路径、资源名称和资源 path；Explorer 新增改为离线暂存后统一推送。
+- 批量推送按父分组、子分组、资源依赖顺序同步，支持响应丢失恢复和插件侧幂等复用。
+- 新增扩展与 `magic-api-workspace` Skill 共用的零依赖 Node.js CRUD/校验核心及预览优先 CLI。
+- 新增未知分组、服务器不匹配、元数据损坏、疑似移动/重命名和符号链接保护。
+- 新增远端写操作前 journal、分组/资源响应丢失恢复、重复 create no-op 和 create/delete 混合批次阻断。
+- 服务地址、镜像目录、用户名和 Token 改为工作区隔离；密码不持久化，历史全局连接与 Token 不再读取。
+- 新增 `magic-api-workspace` AI Skill，定义工作区增删查改与完成验证规则。
+- AI Skills 安装命令改为安装扩展内全部内置 skills。
+
 ## 0.1.0
 
 - 首版发布。

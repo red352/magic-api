@@ -101,3 +101,6 @@ out/
 .settings
 bin/
 .myeclipse
+
+# VS Code extension package artifacts
+*.vsix

@@ -32,7 +32,15 @@ function registerMagicScriptLanguageFeatures({ vscode, client, output, workspace
       new MagicScriptHoverProvider(vscode, languageData, runtimeIndex)
     )
   ];
-  return vscode.Disposable.from(...disposables);
+  const disposable = vscode.Disposable.from(...disposables);
+  return {
+    clearCache() {
+      runtimeIndex.clearCache();
+    },
+    dispose() {
+      disposable.dispose();
+    }
+  };
 }
 
 module.exports = {

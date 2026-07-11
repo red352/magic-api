@@ -28,6 +28,11 @@ async function main() {
 
   const vscode = createFakeVscode();
   const runtimeIndex = createRuntimeIndex();
+  runtimeIndex.javaClassIndex = new Map([["stale", true]]);
+  runtimeIndex.failureLogged = true;
+  runtimeIndex.clearCache();
+  assert.strictEqual(runtimeIndex.javaClassIndex, undefined);
+  assert.strictEqual(runtimeIndex.failureLogged, false);
   const provider = new MagicScriptCompletionProvider(vscode, data, runtimeIndex, createWorkspaceIndex());
   const selectOne = data.modules.db.methods.find((method) => method.label === "selectOne");
   const item = provider.toCompletionItem(Object.assign({ source: "static" }, selectOne), 2);

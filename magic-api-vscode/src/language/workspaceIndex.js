@@ -1,8 +1,5 @@
 "use strict";
 
-const fs = require("fs");
-const path = require("path");
-
 function parseJson(text) {
   try {
     return JSON.parse(text);
@@ -72,10 +69,10 @@ class WorkspaceIndex {
       return {};
     }
     if (entry.metadataPath) {
-      return parseJson(await fs.promises.readFile(path.join(root, entry.metadataPath), "utf8")) || {};
+      return parseJson(await this.workspaceMirror.readWorkspaceText(root, entry.metadataPath)) || {};
     }
     if (entry.type === "json") {
-      return parseJson(await fs.promises.readFile(path.join(root, entry.path), "utf8")) || {};
+      return parseJson(await this.workspaceMirror.readWorkspaceText(root, entry.path)) || {};
     }
     return {};
   }

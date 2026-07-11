@@ -2,7 +2,7 @@
   "name": "magic-api-vscode",
   "displayName": "magic-api",
   "description": "在 Visual Studio Code 中编辑 magic-api 资源。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "reddog",
   "license": "MIT",
   "repository": {
@@ -46,6 +46,9 @@
     "onCommand:magicApi.pullWorkspace",
     "onCommand:magicApi.pushCurrentLocalFile",
     "onCommand:magicApi.pushWorkspace",
+    "onCommand:magicApi.createResourceFromExplorer",
+    "onCommand:magicApi.deleteResourceFromExplorer",
+    "onCommand:magicApi.resolvePendingCreateRequests",
     "onCommand:magicApi.openMetadataEditor",
     "onCommand:magicApi.runCurrentApi",
     "onCommand:magicApi.installAiSkills",
@@ -54,9 +57,12 @@
   ],
   "main": "./extension.js",
   "scripts": {
-    "vscode:prepublish": "npm run check && npm run test:language",
+    "vscode:prepublish": "npm run check && npm run test:language && npm run test:workspace && npm run test:operations && npm run test:connection",
     "check": "node scripts/check-js.js",
     "test:language": "node scripts/test-language.js",
+    "test:workspace": "node scripts/test-workspace.js",
+    "test:operations": "node scripts/test-workspace-operations.js",
+    "test:connection": "node scripts/test-connection.js",
     "language-data": "node scripts/update-language-data.js",
     "package": "npx --yes @vscode/vsce@3.9.2 package --no-dependencies --no-yarn",
     "publish": "npx --yes @vscode/vsce@3.9.2 publish --no-dependencies --no-yarn"
@@ -71,26 +77,31 @@
         "magicApi.serverUrl": {
           "type": "string",
           "default": "http://localhost:9999/magic/web",
-          "description": "magic-api Web 工作台地址，例如 http://localhost:9999/magic/web。"
+          "scope": "window",
+          "description": "当前 VS Code 工作区专用的 magic-api Web 工作台地址。全局用户值不会用于连接。"
         },
         "magicApi.workspaceDir": {
           "type": "string",
           "default": ".magic-api-workspace",
-          "description": "magic-api 本地镜像目录。相对路径会放在当前 VS Code 工作区下，绝对路径会直接使用。"
+          "scope": "window",
+          "description": "当前 VS Code 工作区专用的本地镜像目录。相对路径会放在当前工作区下；全局用户值不会生效。"
         },
         "magicApi.syncOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "保存本地镜像文件时自动推送到 magic-api 服务端。"
+          "scope": "resource",
+          "description": "保存 manifest 已管理资源时自动推送修改；新增资源仍需执行批量推送预检。"
         },
         "magicApi.autoPullOnOpen": {
           "type": "boolean",
           "default": true,
+          "scope": "resource",
           "description": "从资源树打开资源时，如果本地镜像不存在则自动拉取。"
         },
         "magicApi.checkConflicts": {
           "type": "boolean",
           "default": true,
+          "scope": "resource",
           "description": "推送前检查服务端资源是否在本地拉取后被其他客户端修改。"
         }
       }
@@ -137,6 +148,20 @@
         "icon": "$(cloud-upload)"
       },
       {
+        "command": "magicApi.createResourceFromExplorer",
+        "title": "magic-api: 新增资源",
+        "icon": "$(add)"
+      },
+      {
+        "command": "magicApi.deleteResourceFromExplorer",
+        "title": "magic-api: 删除资源",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "magicApi.resolvePendingCreateRequests",
+        "title": "magic-api: 处理结果未知的新增请求"
+      },
+      {
         "command": "magicApi.openMetadataEditor",
         "title": "magic-api: 编辑资源信息"
       },
@@ -168,9 +193,14 @@
     "menus": {
       "view/title": [
         {
+          "command": "magicApi.createResourceFromExplorer",
+          "when": "view == magicApiExplorer",
+          "group": "navigation@1"
+        },
+        {
           "command": "magicApi.syncWorkspace",
           "when": "view == magicApiExplorer",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
           "command": "magicApi.pullWorkspace",
@@ -190,6 +220,11 @@
       ],
       "view/item/context": [
         {
+          "command": "magicApi.createResourceFromExplorer",
+          "when": "view == magicApiExplorer && (viewItem == magicApiGroup || viewItem == magicApiRoot)",
+          "group": "1_create"
+        },
+        {
           "command": "magicApi.openResource",
           "when": "view == magicApiExplorer && viewItem == magicApiFile",
           "group": "inline"
@@ -203,6 +238,11 @@
           "command": "magicApi.openMetadataEditor",
           "when": "view == magicApiExplorer && viewItem == magicApiFile",
           "group": "3_edit"
+        },
+        {
+          "command": "magicApi.deleteResourceFromExplorer",
+          "when": "view == magicApiExplorer && viewItem == magicApiFile",
+          "group": "4_delete"
         }
       ],
       "editor/title": [

@@ -5,5 +5,6 @@ node_modules/**
 *.log
 PUBLISHING.md
 scripts/**
+!ai-skills/magic-api-workspace/scripts/**
 test/**
 src/language-data/source/**

@@ -2,15 +2,16 @@
 
 const http = require("http");
 const https = require("https");
+const { WorkspaceConnectionStore } = require("./workspaceConnection");
 
-const TOKEN_SECRET_KEY = "magic-api.token";
 const RESOURCE_SEPARATOR = "\r\n================================\r\n";
 
 class MagicApiClient {
-  constructor(context, output, vscode) {
+  constructor(context, output, vscode, connectionStore) {
     this.context = context;
     this.output = output;
     this.vscode = vscode;
+    this.connectionStore = connectionStore || new WorkspaceConnectionStore(context, vscode);
     this.configCache = undefined;
     this.classesCache = undefined;
     this.classesTextCache = undefined;
@@ -18,8 +19,19 @@ class MagicApiClient {
   }
 
   getServerUrl() {
-    const configured = this.vscode.workspace.getConfiguration("magicApi").get("serverUrl");
-    return normalizeServerUrl(configured || "http://localhost:9999/magic/web");
+    return this.connectionStore.getServerUrl();
+  }
+
+  hasWorkspace() {
+    return this.connectionStore.hasWorkspace();
+  }
+
+  assertWorkspace() {
+    this.connectionStore.assertWorkspace();
+  }
+
+  async getUsername() {
+    return this.connectionStore.getUsername();
   }
 
   clearCache() {
@@ -42,14 +54,15 @@ class MagicApiClient {
     if (token) {
       await this.setToken(Array.isArray(token) ? token[0] : token);
     }
+    await this.connectionStore.setUsername(username);
   }
 
   async setToken(token) {
-    await this.context.secrets.store(TOKEN_SECRET_KEY, token);
+    await this.connectionStore.setToken(token);
   }
 
   async clearToken() {
-    await this.context.secrets.delete(TOKEN_SECRET_KEY);
+    await this.connectionStore.clearToken();
   }
 
   async getConfig() {
@@ -78,6 +91,24 @@ class MagicApiClient {
       { "content-type": "text/plain;charset=utf-8" }
     );
     return savedId;
+  }
+
+  async saveGroup(group) {
+    return this.getJsonBean(
+      "POST",
+      "/resource/folder/save",
+      JSON.stringify(group),
+      { "content-type": "application/json;charset=utf-8" }
+    );
+  }
+
+  async deleteResource(id) {
+    return this.getJsonBean(
+      "POST",
+      "/resource/delete",
+      formEncode({ id }),
+      { "content-type": "application/x-www-form-urlencoded;charset=utf-8" }
+    );
   }
 
   async reload() {
@@ -114,7 +145,7 @@ class MagicApiClient {
   }
 
   async requestAbsolute(method, absoluteUrl, body, headers, includeToken, rejectOnError) {
-    const token = includeToken ? await this.context.secrets.get(TOKEN_SECRET_KEY) : undefined;
+    const token = includeToken ? await this.connectionStore.getToken() : undefined;
     const allHeaders = Object.assign({}, headers || {});
     if (token) {
       allHeaders["Magic-Token"] = token;
@@ -132,14 +163,17 @@ class MagicApiClient {
       throw new Error(`Expected JSON from ${path}.`);
     }
     if (typeof payload.code === "number" && payload.code !== 1) {
-      throw new Error(payload.message || `magic-api returned code ${payload.code}.`);
+      const error = new Error(payload.message || `magic-api returned code ${payload.code}.`);
+      error.magicApiCode = payload.code;
+      error.magicApiResponse = true;
+      throw error;
     }
     return payload.data;
   }
 
   async request(method, path, body, headers, includeToken) {
     const url = new URL(this.getServerUrl() + (path.startsWith("/") ? path : `/${path}`));
-    const token = includeToken ? await this.context.secrets.get(TOKEN_SECRET_KEY) : undefined;
+    const token = includeToken ? await this.connectionStore.getToken() : undefined;
     const allHeaders = Object.assign({}, headers || {});
     if (token) {
       allHeaders["Magic-Token"] = token;

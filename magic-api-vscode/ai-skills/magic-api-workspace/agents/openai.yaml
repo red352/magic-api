@@ -1,0 +1,4 @@
+interface:
+  display_name: "magic-api 工作区"
+  short_description: "用统一 JS 离线新增分组并安全同步 magic-api"
+  default_prompt: "使用 $magic-api-workspace 通过统一 JS CLI 离线规划嵌套分组和资源，校验后由扩展安全同步。"

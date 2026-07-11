@@ -75,7 +75,7 @@ code --list-extensions --show-versions | grep '^reddog.magic-api-vscode@'
 如果要确认 `ai-skills` 已进入安装目录，可以检查：
 
 ```bash
-ls ~/.vscode/extensions/reddog.magic-api-vscode-*/ai-skills/magic-script
+find ~/.vscode/extensions/reddog.magic-api-vscode-*/ai-skills -maxdepth 2 -name SKILL.md -print
 ```
 
 ## 创建发布者
