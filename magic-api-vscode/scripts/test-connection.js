@@ -71,6 +71,7 @@ async function main() {
   assert.strictEqual(await storeB.getToken(), "token-b", "clearing one workspace must not affect another");
 
   const client = new MagicApiClient(workspaceA.context, { appendLine() {} }, vscodeA.vscode, storeA);
+  assert.strictEqual(client.getRequestBaseUrl(), "http://workspace-a.example");
   client.request = async (method, requestPath, body) => {
     assert.strictEqual(method, "POST");
     assert.strictEqual(requestPath, "/login");

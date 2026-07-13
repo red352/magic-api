@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+- 修复从远端初始化后，历史 Task、Function、Script 等资源 path 带前导斜杠时被批量推送预检误判为“不规范”的问题；等价 path 现在使用统一语义身份参与幂等比较。
+- 修复只修改资源名称等非 path 字段时意外重写远端历史 path 的问题；只有显式修改 path 时才写入本地规范形式。
+- 为 `magic-api-workspace` Skill 新增实际接口请求 CLI，通过当前工作区的 VS Code 扩展桥接读取服务地址和 SecretStorage Token，并使用 lowercase `magic-token` 请求头，避免凭据进入命令、环境变量或工作区文件。
+- 增加请求同源校验、控制台只读白名单、响应大小与超时限制，以及敏感响应头隐藏；服务端写操作仍由扩展 journal 和确认流程管理。
+- 修复 AI 沙箱无法读取扩展桥接时缺少恢复路径的问题；Skill 会申请最小范围的宿主机执行授权重试同一命令，不使用 `sudo`、root 或宽泛命令授权。
+
 ## 1.1.0
 
 - 本地镜像升级为 manifest v3，脚本资源使用同目录 `.ms + .magic.json` 资源对，并记录离线分组计划与分组新增 journal。

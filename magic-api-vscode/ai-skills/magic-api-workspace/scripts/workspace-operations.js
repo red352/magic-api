@@ -493,7 +493,7 @@ class WorkspaceOperations {
     if (patch.name !== undefined) {
       next.name = validateResourceName(patch.name);
     }
-    if (PATH_RESOURCE_TYPES.has(entry.folder)) {
+    if (PATH_RESOURCE_TYPES.has(entry.folder) && Object.prototype.hasOwnProperty.call(patch, "path")) {
       next.path = normalizeResourcePath(entry.folder, next.path);
     }
     if (entry.folder === "api") {
@@ -859,10 +859,10 @@ function validateExistingEntity(entry, entity) {
     throw new Error("metadata groupId 与 manifest 不一致。");
   }
   if (PATH_RESOURCE_TYPES.has(entry.folder)) {
-    const normalized = normalizeResourcePath(entry.folder, entity.path);
-    if (entity.path !== normalized) {
-      throw new Error(`${entry.folder} path 必须规范化为 ${normalized}。`);
-    }
+    // 服务端历史数据可能保留前导斜杠。后端构建映射键时会统一折叠斜杠，
+    // 因此这里只校验 path 是否安全且语义有效，不要求远端镜像符合本地新建格式。
+    // 本地 create 和显式 update path 仍会写入 normalizeResourcePath 的规范形式。
+    normalizeResourcePath(entry.folder, entity.path);
   }
   if (entry.folder === "api") {
     requireText(entity.method, "API 缺少 method。");
@@ -1296,7 +1296,9 @@ function localResourceId(resourcePath) {
 function resourceIdentity(folder, entity) {
   return JSON.stringify([
     entity && entity.name || "",
-    folder === "datasource" ? entity && entity.key || "" : entity && entity.path || ""
+    folder === "datasource"
+      ? entity && entity.key || ""
+      : normalizedResourceIdentity(folder, entity && entity.path)
   ]);
 }
 
@@ -1304,10 +1306,19 @@ function canonicalResourceHash(folder, entity) {
   const value = {};
   Object.keys(entity || {}).sort().forEach((key) => {
     if (!["id", "groupId", "createTime", "updateTime", "createBy", "updateBy", "lock"].includes(key)) {
-      value[key] = entity[key];
+      value[key] = key === "path" && PATH_RESOURCE_TYPES.has(folder)
+        ? normalizedResourceIdentity(folder, entity[key])
+        : entity[key];
     }
   });
   return hashText(`${folder}\0${JSON.stringify(value)}`);
+}
+
+function normalizedResourceIdentity(folder, value) {
+  if (!PATH_RESOURCE_TYPES.has(folder)) {
+    return String(value || "").trim();
+  }
+  return normalizeResourcePath(folder, value);
 }
 
 function cloneJson(value) {

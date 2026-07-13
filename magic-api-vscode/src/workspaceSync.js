@@ -3,6 +3,7 @@
 const path = require("path");
 const {
   MANIFEST_VERSION,
+  PATH_RESOURCE_TYPES,
   SCRIPT_METADATA_SUFFIX,
   SERVER_OWNED_FIELDS,
   WorkspaceOperations,
@@ -113,6 +114,7 @@ function collectResourceIds(treeNode, ids) {
 
 module.exports = {
   MANIFEST_VERSION,
+  PATH_RESOURCE_TYPES,
   SCRIPT_METADATA_SUFFIX,
   SERVER_OWNED_FIELDS,
   WorkspaceOperations,

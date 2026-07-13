@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const vscode = require("vscode");
 const { MagicApiClient, normalizeServerUrl } = require("./src/client");
+const { SkillRequestBridge } = require("./src/skillRequestBridge");
 const { WorkspaceConnectionStore } = require("./src/workspaceConnection");
 const { registerMagicScriptLanguageFeatures } = require("./src/language");
 const { openApiRunnerPanel } = require("./src/views/apiRunner");
@@ -14,6 +15,7 @@ const {
 } = require("./src/views/metadataEditor");
 const {
   MANIFEST_VERSION,
+  PATH_RESOURCE_TYPES,
   SERVER_OWNED_FIELDS,
   WorkspaceOperations,
   buildNewResourceEntity,
@@ -46,6 +48,11 @@ function activate(context) {
   const client = new MagicApiClient(context, output, vscode, connectionStore);
   const fileSystem = new MagicApiFileSystemProvider(client, output);
   const workspaceMirror = new MagicApiWorkspaceMirror(context, client, output);
+  const skillRequestBridge = new SkillRequestBridge({
+    client,
+    output,
+    resolveRoot: () => workspaceMirror.resolveRoot()
+  });
   const treeProvider = new MagicApiTreeDataProvider(client, fileSystem, workspaceMirror, output);
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
 
@@ -54,7 +61,7 @@ function activate(context) {
   statusBar.tooltip = "Configure magic-api server";
   statusBar.show();
 
-  context.subscriptions.push(output, statusBar);
+  context.subscriptions.push(output, statusBar, skillRequestBridge);
   const registerWorkspaceCommand = (command, handler) =>
     vscode.commands.registerCommand(command, async (...args) => {
       if (!client.hasWorkspace()) {
@@ -116,6 +123,7 @@ function activate(context) {
     languageFeatures.clearCache();
     await treeProvider.refresh();
     await updateLocalFileContext(vscode.window.activeTextEditor);
+    await skillRequestBridge.refresh();
   };
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
@@ -178,6 +186,7 @@ function activate(context) {
       client.clearCache();
       await treeProvider.refresh();
       await updateLocalFileContext(vscode.window.activeTextEditor);
+      await skillRequestBridge.refresh();
       vscode.window.showInformationMessage(
         `magic-api 增量同步完成：总计 ${result.count}，下载 ${result.downloaded}，复用 ${result.reused}。`
       );
@@ -190,6 +199,7 @@ function activate(context) {
       client.clearCache();
       await treeProvider.refresh();
       await updateLocalFileContext(vscode.window.activeTextEditor);
+      await skillRequestBridge.refresh();
       vscode.window.showInformationMessage(
         `magic-api 已全量拉取 ${result.count} 个资源到 ${result.root}。`
       );
@@ -330,6 +340,9 @@ function activate(context) {
   );
 
   treeProvider.refresh().catch((error) => {
+    output.appendLine(formatError(error));
+  });
+  skillRequestBridge.refresh().catch((error) => {
     output.appendLine(formatError(error));
   });
 }
@@ -2903,6 +2916,7 @@ class MagicApiWorkspaceMirror {
   async writeServerInfo(root) {
     await this.writeJson(root, path.posix.join(WORKSPACE_META_DIR, WORKSPACE_SERVER), {
       serverUrl: this.client.getServerUrl(),
+      requestBaseUrl: this.client.getRequestBaseUrl(),
       updatedAt: Date.now()
     });
   }
@@ -3190,6 +3204,9 @@ function resourceBaseName(folder, entity) {
 
 function resourceIdentityValue(folder, entity) {
   const value = folder === "datasource" ? entity && entity.key : entity && entity.path;
+  if (PATH_RESOURCE_TYPES.has(folder)) {
+    return normalizeResourcePath(folder, value);
+  }
   return String(value || "").trim();
 }
 

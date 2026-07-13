@@ -22,6 +22,10 @@ class MagicApiClient {
     return this.connectionStore.getServerUrl();
   }
 
+  getRequestBaseUrl() {
+    return new URL(this.getServerUrl()).origin;
+  }
+
   hasWorkspace() {
     return this.connectionStore.hasWorkspace();
   }
@@ -144,16 +148,17 @@ class MagicApiClient {
     return this.classCache.get(key);
   }
 
-  async requestAbsolute(method, absoluteUrl, body, headers, includeToken, rejectOnError) {
+  async requestAbsolute(method, absoluteUrl, body, headers, includeToken, rejectOnError, requestOptions) {
     const token = includeToken ? await this.connectionStore.getToken() : undefined;
     const allHeaders = Object.assign({}, headers || {});
     if (token) {
-      allHeaders["Magic-Token"] = token;
+      removeHeader(allHeaders, "magic-token");
+      allHeaders["magic-token"] = token;
     }
     if (body !== undefined && body !== null) {
       allHeaders["content-length"] = Buffer.byteLength(body);
     }
-    return requestText(new URL(absoluteUrl), method, body, allHeaders, rejectOnError);
+    return requestText(new URL(absoluteUrl), method, body, allHeaders, rejectOnError, requestOptions);
   }
 
   async getJsonBean(method, path, body, headers) {
@@ -176,7 +181,8 @@ class MagicApiClient {
     const token = includeToken ? await this.connectionStore.getToken() : undefined;
     const allHeaders = Object.assign({}, headers || {});
     if (token) {
-      allHeaders["Magic-Token"] = token;
+      removeHeader(allHeaders, "magic-token");
+      allHeaders["magic-token"] = token;
     }
     if (body !== undefined && body !== null) {
       allHeaders["content-length"] = Buffer.byteLength(body);
@@ -185,7 +191,7 @@ class MagicApiClient {
   }
 }
 
-function requestText(url, method, body, headers, rejectOnError) {
+function requestText(url, method, body, headers, rejectOnError, requestOptions = {}) {
   return new Promise((resolve, reject) => {
     const transport = url.protocol === "https:" ? https : http;
     const request = transport.request(
@@ -196,7 +202,15 @@ function requestText(url, method, body, headers, rejectOnError) {
       },
       (response) => {
         const chunks = [];
-        response.on("data", (chunk) => chunks.push(chunk));
+        let size = 0;
+        response.on("data", (chunk) => {
+          size += chunk.length;
+          if (requestOptions.maxResponseBytes && size > requestOptions.maxResponseBytes) {
+            request.destroy(new Error(`Response exceeds ${requestOptions.maxResponseBytes} bytes.`));
+            return;
+          }
+          chunks.push(chunk);
+        });
         response.on("end", () => {
           const text = Buffer.concat(chunks).toString("utf8");
           if (rejectOnError !== false && response.statusCode >= 400) {
@@ -211,6 +225,11 @@ function requestText(url, method, body, headers, rejectOnError) {
         });
       }
     );
+    if (requestOptions.timeoutMs) {
+      request.setTimeout(requestOptions.timeoutMs, () => {
+        request.destroy(new Error(`Request timed out after ${requestOptions.timeoutMs}ms.`));
+      });
+    }
     request.on("error", reject);
     if (body !== undefined && body !== null) {
       request.write(body);
@@ -221,6 +240,14 @@ function requestText(url, method, body, headers, rejectOnError) {
 
 function normalizeServerUrl(serverUrl) {
   return String(serverUrl || "").trim().replace(/\/+$/, "");
+}
+
+function removeHeader(headers, name) {
+  Object.keys(headers || {}).forEach((key) => {
+    if (key.toLowerCase() === name.toLowerCase()) {
+      delete headers[key];
+    }
+  });
 }
 
 function formEncode(values) {

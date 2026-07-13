@@ -19,6 +19,7 @@ const {
 } = require("../src/workspaceSync");
 
 const contributedCommands = new Set(extensionManifest.contributes.commands.map((item) => item.command));
+assert.ok(extensionManifest.activationEvents.includes("workspaceContains:**/.magic-api/manifest.json"));
 assert.ok(contributedCommands.has("magicApi.createResourceFromExplorer"));
 assert.ok(contributedCommands.has("magicApi.deleteResourceFromExplorer"));
 const explorerMenus = extensionManifest.contributes.menus["view/item/context"];
@@ -217,6 +218,9 @@ async function runIntegrationTests() {
     },
     getServerUrl() {
       return "http://localhost:9999/magic/web";
+    },
+    getRequestBaseUrl() {
+      return "http://localhost:9999";
     }
   };
   const mirror = new MagicApiWorkspaceMirror({}, baseClient, output);
@@ -440,6 +444,48 @@ async function runIntegrationTests() {
       }
     } finally {
       await fs.promises.rm(nestedGroupRoot, { recursive: true, force: true });
+    }
+
+    const remoteTaskRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "magic-api-vscode-remote-task-"));
+    try {
+      const sourcePath = "task/telegram/tg-yunxiao-bot/pollUpdates.ms";
+      await writeRawApiPair(remoteTaskRoot, sourcePath, {
+        id: "remote-task-id",
+        groupId: "task-group",
+        name: "PollUpdates",
+        path: "/pollUpdates",
+        cron: "0 0/5 * * * ?",
+        enabled: true,
+        updateTime: 1
+      }, "return null;\n");
+      const taskEntry = {
+        id: "remote-task-id",
+        folder: "task",
+        groupId: "task-group",
+        type: "script",
+        path: sourcePath,
+        metadataPath: sourcePath.replace(/\.ms$/, ".magic.json"),
+        name: "PollUpdates",
+        serverUpdateTime: 1
+      };
+      taskEntry.hash = await mirror.hashEntry(remoteTaskRoot, taskEntry);
+      const taskManifest = baseManifest();
+      taskManifest.groups = [{
+        id: "task-group",
+        folder: "task",
+        workspacePath: "task/telegram/tg-yunxiao-bot",
+        path: ".magic-api/groups/task/task-group.json"
+      }];
+      taskManifest.entries.push(taskEntry);
+      await mirror.writeManifest(remoteTaskRoot, taskManifest);
+
+      const taskMirror = new MagicApiWorkspaceMirror({}, baseClient, output);
+      taskMirror.resolveRoot = async () => remoteTaskRoot;
+      const pushResult = await taskMirror.pushChanged();
+      assert.strictEqual(pushResult.count, 0);
+      assert.strictEqual(pushResult.failed, 0);
+    } finally {
+      await fs.promises.rm(remoteTaskRoot, { recursive: true, force: true });
     }
 
     const managedEntry = await writeManagedApiPair(root, mirror, "managed-id", "api/user/managed.ms");

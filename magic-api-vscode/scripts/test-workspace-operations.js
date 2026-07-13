@@ -30,6 +30,7 @@ run().then(() => {
 async function run() {
   await testOfflineNestedGroupsAndIdempotence();
   await testCreateTypesAndCli();
+  await testRemotePathCompatibility();
   await testUpdatePreservesIdentityAndFileNames();
   await testDeleteAndSafety();
 }
@@ -268,6 +269,64 @@ async function testUpdatePreservesIdentityAndFileNames() {
       () => operations.update({ id: "update-id", metadataPatch: { groupId: "other" } }, false),
       /不能包含服务端字段：groupId/
     );
+  } finally {
+    await fs.promises.rm(root, { recursive: true, force: true });
+  }
+}
+
+async function testRemotePathCompatibility() {
+  const root = await createRoot();
+  try {
+    const sourcePath = "task/telegram/tg-yunxiao-bot/pollUpdates.ms";
+    const metadataPath = sourcePath.replace(/\.ms$/, ".magic.json");
+    const script = "/**\n * PollUpdates\n *\n * task resource.\n */\nreturn null;\n";
+    const metadata = {
+      id: "remote-task-id",
+      groupId: "task-group",
+      name: "PollUpdates",
+      path: "/pollUpdates",
+      cron: "0 0/5 * * * ?",
+      enabled: false
+    };
+    await fs.promises.mkdir(path.dirname(path.join(root, sourcePath)), { recursive: true });
+    await fs.promises.writeFile(path.join(root, sourcePath), script, "utf8");
+    const metadataText = `${JSON.stringify(metadata, null, 2)}\n`;
+    await fs.promises.writeFile(path.join(root, metadataPath), metadataText, "utf8");
+    const manifest = await readManifest(root);
+    manifest.entries.push({
+      id: metadata.id,
+      folder: "task",
+      groupId: metadata.groupId,
+      type: "script",
+      path: sourcePath,
+      metadataPath,
+      name: metadata.name,
+      serverUpdateTime: 1,
+      hash: hash(`${metadataText}\n${script}`)
+    });
+    await writeManifest(root, manifest);
+
+    const operations = new WorkspaceOperations(root);
+    const validation = await operations.validate();
+    assert.strictEqual(validation.ok, true, validation.errors.join("\n"));
+
+    const repeated = await operations.create({
+      type: "task",
+      groupId: "task-group",
+      name: "PollUpdates",
+      path: "pollUpdates",
+      cron: metadata.cron,
+      enabled: false,
+      script
+    }, false);
+    assert.strictEqual(repeated.noOp, true, "equivalent remote leading slash must remain idempotent");
+    assert.strictEqual(repeated.id, metadata.id);
+
+    const nameOnly = await operations.update({ id: metadata.id, name: "PollUpdatesRenamed" }, false);
+    assert.strictEqual(nameOnly.entity.path, "/pollUpdates", "unrelated updates must preserve remote path spelling");
+
+    const explicitPath = await operations.update({ id: metadata.id, path: "/jobs//pollUpdates/" }, false);
+    assert.strictEqual(explicitPath.entity.path, "jobs/pollUpdates", "explicit path updates use local canonical form");
   } finally {
     await fs.promises.rm(root, { recursive: true, force: true });
   }

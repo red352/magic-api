@@ -200,11 +200,13 @@ API 需要 `name`、`path`、`method`；function/component 需要 `name`、`path
       SKILL.md
       agents/openai.yaml
       scripts/
+        magic-api-request.js
         magic-api-workspace.js
+        request-bridge.js
         workspace-operations.js
 ```
 
-如果任一目标目录已存在，扩展会询问是否覆盖。`magic-script` 提供脚本语法与 API 规则；`magic-api-workspace` 内置零依赖 Node.js CLI，提供本地镜像查询、新增、修改、删除、校验、冲突检查和完成验证规则。
+如果任一目标目录已存在，扩展会询问是否覆盖。`magic-script` 提供脚本语法与 API 规则；`magic-api-workspace` 内置零依赖 Node.js CLI，提供本地镜像查询、新增、修改、删除、校验、冲突检查、完成验证和实际接口请求规则。
 
 AI 工作区操作统一使用：
 
@@ -213,6 +215,10 @@ node .codex/skills/magic-api-workspace/scripts/magic-api-workspace.js <command> 
 ```
 
 可用命令为 `status/groups/list/get/ensure-group/create/update/delete/validate`。`ensure-group --type api --group-path admin/user` 可预览或暂存缺失分组；`create` 使用 `--group-path` 自动补齐分组，或用 `--group-id` 指向已有分组。变更命令默认只输出 JSON 预览，追加 `--apply` 才写本地镜像；CLI 只会为离线分组计划更新当前工作区 manifest，不读取凭据也不访问服务端。完成本地操作后仍由扩展执行批量推送、journal、冲突检查和删除确认。
+
+实际接口请求使用 `magic-api-request.js`。脚本默认通过当前工作区的本地桥接，让扩展从该工作区 SecretStorage 读取 Token，并以 lowercase `magic-token` 请求头发送；Token 不会复制到环境变量、工作区或 CLI 输出。请求基址自动取 `magicApi.serverUrl` 去掉控制台 path 后的域名，例如 `http://localhost:9999/magic/web` 对应 `http://localhost:9999`。所有请求默认只预览，追加 `--send` 才发送；控制台仅开放查询白名单，写操作仍由扩展同步和 journal 管理。
+
+若 AI 沙箱无法读取当前用户临时目录中的插件桥接，Skill 会要求对同一条请求 CLI 自动发起最小范围的宿主机执行授权，而不是复制 Token 或切换到全局配置。实际是否免确认由运行平台的沙箱策略决定；Skill 不会绕过平台审批，也不会使用 `sudo` 或扩大到其他命令。
 
 ## 使用边界
 
