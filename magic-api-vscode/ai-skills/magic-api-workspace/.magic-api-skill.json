@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "magic-api-workspace",
+  "version": "1.2.0",
+  "files": {
+    "agents/openai.yaml": "9257baa3f5d4889ebf17bf2637ea11480e754e6ad7c024fbf26110e7e2e7ec4c",
+    "references/cli.md": "a3e21d93fcc65e72f6d94b325f28dcf1cacb16356db93cfa8e7619fc1ff32d26",
+    "scripts/command-schema.js": "6c0ee7bdc3291f76a6eb2bf238e03004a8ff383af6f0a58500663bd77a29d0c8",
+    "scripts/control-client.js": "36811e3092668c63212b2b52ada73fd5f414a104fafa392da6d6559333c11a46",
+    "scripts/magic-api-request.js": "869bcf8cb236f1ada776ec855c4d6d4c1ce13c0e3afae314a52c6f33c12ea8bc",
+    "scripts/magic-api-workspace.js": "17670ebe0bda0799350d37bbdb5b5472b365e87cf10a94ecdc719fe02065bc26",
+    "scripts/magic-api.js": "136d9f939eac8324ef86a4396cb86710e29d41e8b7e19af98f057405a3770c2d",
+    "scripts/request-bridge.js": "a1f8ebf586b967ec1c1edde0f9ea64280dcf685233d305a1fb0512649c17c4c5",
+    "scripts/workspace-operations.js": "667f62125f07ae64efe99b5cc79452c3efb65d4ec2f61e6397c110af479593e3",
+    "SKILL.md": "e7a176d300a709f3a77710f0e35a35982cda8918487c5a83d258b75b10462159"
+  }
+}

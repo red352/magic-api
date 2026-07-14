@@ -6,6 +6,7 @@ const path = require("path");
 const vscode = require("vscode");
 const { MagicApiClient, normalizeServerUrl } = require("./src/client");
 const { SkillRequestBridge } = require("./src/skillRequestBridge");
+const { AiSkillManager } = require("./src/skillManager");
 const { WorkspaceConnectionStore } = require("./src/workspaceConnection");
 const { registerMagicScriptLanguageFeatures } = require("./src/language");
 const { openApiRunnerPanel } = require("./src/views/apiRunner");
@@ -48,10 +49,21 @@ function activate(context) {
   const client = new MagicApiClient(context, output, vscode, connectionStore);
   const fileSystem = new MagicApiFileSystemProvider(client, output);
   const workspaceMirror = new MagicApiWorkspaceMirror(context, client, output);
+  const skillManager = new AiSkillManager({
+    context,
+    vscode,
+    output,
+    extensionPath: context.extensionPath
+  });
   const skillRequestBridge = new SkillRequestBridge({
     client,
     output,
-    resolveRoot: () => workspaceMirror.resolveRoot()
+    resolveRoot: () => workspaceMirror.resolveRoot(),
+    workspaceMirror,
+    vscode,
+    promptLogin: () => login(client),
+    promptSetToken: () => promptSetToken(client),
+    skillManager
   });
   const treeProvider = new MagicApiTreeDataProvider(client, fileSystem, workspaceMirror, output);
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -157,16 +169,10 @@ function activate(context) {
       await refreshConnectionState();
     }),
     registerWorkspaceCommand("magicApi.setToken", async () => {
-      const token = await vscode.window.showInputBox({
-        title: "magic-api Magic-Token",
-        prompt: "粘贴从 magic-api Web 工作台获取到的 Magic-Token。",
-        password: true,
-        ignoreFocusOut: true
-      });
-      if (!token) {
+      const saved = await promptSetToken(client);
+      if (!saved) {
         return;
       }
-      await client.setToken(token.trim());
       await refreshConnectionState();
       vscode.window.showInformationMessage("Magic-Token 已保存。");
     }),
@@ -335,7 +341,7 @@ function activate(context) {
       await vscode.env.openExternal(vscode.Uri.parse(client.getServerUrl()));
     }),
     vscode.commands.registerCommand("magicApi.installAiSkills", async () => {
-      await installAiSkillsToWorkspace(context, output);
+      await skillManager.installInteractively();
     })
   );
 
@@ -344,6 +350,9 @@ function activate(context) {
   });
   skillRequestBridge.refresh().catch((error) => {
     output.appendLine(formatError(error));
+  });
+  skillManager.autoUpdate().catch((error) => {
+    output.appendLine(`[magic-api] AI Skills 自动更新检查失败：${formatError(error)}`);
   });
 }
 
@@ -448,80 +457,6 @@ async function promptExplorerResourceDefinition(folder, initialGroupPath = "") {
   };
 }
 
-async function installAiSkillsToWorkspace(context, output) {
-  const workspaceFolder = await pickWorkspaceFolder();
-  if (!workspaceFolder) {
-    return;
-  }
-
-  const skillsRoot = path.join(context.extensionPath, "ai-skills");
-  const skillNames = (await fs.promises.readdir(skillsRoot, { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((name) => fs.existsSync(path.join(skillsRoot, name, "SKILL.md")))
-    .sort();
-  if (!skillNames.length) {
-    vscode.window.showErrorMessage("当前扩展包中没有找到 AI Skills。");
-    return;
-  }
-
-  const destinations = skillNames.map((name) =>
-    path.join(workspaceFolder.uri.fsPath, ".codex", "skills", name)
-  );
-  const existing = [];
-  for (let index = 0; index < destinations.length; index++) {
-    if (await fileExists(destinations[index])) {
-      existing.push(skillNames[index]);
-    }
-  }
-  if (existing.length) {
-    const choice = await vscode.window.showWarningMessage(
-      `工作区已存在 ${existing.join("、")}，是否覆盖这些 AI Skills？`,
-      { modal: true },
-      "覆盖"
-    );
-    if (choice !== "覆盖") {
-      return;
-    }
-  }
-
-  for (let index = 0; index < skillNames.length; index++) {
-    const name = skillNames[index];
-    const source = path.join(skillsRoot, name);
-    const destination = destinations[index];
-    await fs.promises.rm(destination, { recursive: true, force: true });
-    await copyDirectory(source, destination);
-    output.appendLine(`AI Skill installed: ${destination}`);
-  }
-  const skillsDestination = path.join(workspaceFolder.uri.fsPath, ".codex", "skills");
-  vscode.window.showInformationMessage(
-    `magic-api AI Skills（${skillNames.join("、")}）已安装到 ${path.relative(workspaceFolder.uri.fsPath, skillsDestination)}。`
-  );
-}
-
-async function pickWorkspaceFolder() {
-  const folders = vscode.workspace.workspaceFolders || [];
-  if (!folders.length) {
-    vscode.window.showWarningMessage("请先打开一个 VS Code 工作区。");
-    return undefined;
-  }
-  if (folders.length === 1) {
-    return folders[0];
-  }
-
-  const selected = await vscode.window.showQuickPick(
-    folders.map((folder) => ({
-      label: folder.name,
-      description: folder.uri.fsPath,
-      folder
-    })),
-    {
-      title: "选择安装 AI Skills 的工作区"
-    }
-  );
-  return selected && selected.folder;
-}
-
 async function runCurrentApi(item, client, fileSystem, workspaceMirror, treeProvider, output) {
   let folder;
   let entity;
@@ -580,6 +515,20 @@ async function login(client) {
   }
   await client.login(username, password);
   vscode.window.showInformationMessage("magic-api login succeeded.");
+}
+
+async function promptSetToken(client) {
+  const token = await vscode.window.showInputBox({
+    title: "magic-api Magic-Token",
+    prompt: "粘贴从 magic-api Web 工作台获取到的 Magic-Token。",
+    password: true,
+    ignoreFocusOut: true
+  });
+  if (!token) {
+    return false;
+  }
+  await client.setToken(token.trim());
+  return true;
 }
 
 class MagicApiFileSystemProvider {
@@ -721,7 +670,7 @@ class MagicApiWorkspaceMirror {
     }
     const localChanges = await this.scanLocalChanges(root, oldManifest);
     const localChangeCount = this.localChangeCount(localChanges);
-    if (localChangeCount) {
+    if (localChangeCount && !options.force) {
       const choice = await vscode.window.showWarningMessage(
         `本地镜像有 ${localChangeCount} 个未推送或不完整的变更，继续拉取可能覆盖这些文件。`,
         { modal: true },
@@ -1236,7 +1185,7 @@ class MagicApiWorkspaceMirror {
     return Object.assign({ path: this.displayEntryPath(entry) }, result);
   }
 
-  async pushChanged() {
+  async pushChanged(options = {}) {
     return this.runExclusive(() =>
       vscode.window.withProgress(
         {
@@ -1362,7 +1311,9 @@ class MagicApiWorkspaceMirror {
           for (let index = 0; index < changes.modified.length; index++) {
             const entry = changes.modified[index];
             try {
-              const result = await this.pushEntry(root, manifest, entry);
+              const result = await this.pushEntry(root, manifest, entry, {
+                autoApprove: Boolean(options.autoApprove)
+              });
               if (result.conflict) {
                 conflicts++;
                 pendingPaths.push(entry.path);
@@ -1388,7 +1339,10 @@ class MagicApiWorkspaceMirror {
         }
 
         if (failed === 0 && changes.deleted.length) {
-          const deleteResult = await this.deleteEntries(root, manifest, changes.deleted);
+          const deleteResult = await this.deleteEntries(root, manifest, changes.deleted, {
+            confirmed: Boolean(options.autoApprove),
+            autoApprove: Boolean(options.autoApprove)
+          });
           deleted += deleteResult.deleted;
           conflicts += deleteResult.conflicts;
           failed += deleteResult.failed;
@@ -1613,7 +1567,10 @@ class MagicApiWorkspaceMirror {
         if (await this.anyEntryFileExists(root, entry)) {
           throw new Error("本地资源文件已重新出现，取消服务端删除。");
         }
-        if (!options.skipConflictCheck && !(await this.confirmNoRemoteConflict(entry, { action: "delete" }))) {
+        if (!options.skipConflictCheck && !(await this.confirmNoRemoteConflict(entry, {
+          action: "delete",
+          autoApprove: Boolean(options.autoApprove)
+        }))) {
           conflicts++;
           pendingPaths.push(entry.path);
           continue;
@@ -1679,6 +1636,10 @@ class MagicApiWorkspaceMirror {
     const remote = await this.client.getFile(entry.id);
     const remoteTime = remote && (remote.updateTime || remote.createTime || 0);
     if (!remoteTime || remoteTime <= entry.serverUpdateTime) {
+      return true;
+    }
+    if (options.autoApprove) {
+      this.output.appendLine(`[magic-api] CLI 计划已批准覆盖远端冲突：${entry.path} (${entry.id})`);
       return true;
     }
     const confirmLabel = options.action === "delete" ? "仍然删除" : "覆盖服务端";
@@ -2235,6 +2196,150 @@ class MagicApiWorkspaceMirror {
       await this.writeManifest(root, manifest);
     }
     return { adopted, cleared, unresolved };
+  }
+
+  async recoverAutomatically() {
+    return this.runExclusive(async () => {
+      const root = await this.resolveRoot();
+      const manifest = await this.readManifest(root);
+      this.assertManifestServer(manifest);
+      await this.ensureManifestV3(root, manifest);
+      const blocked = [];
+      let groupsAdopted = 0;
+      let resourcesAdopted = 0;
+
+      await this.reconcilePendingGroupCreates(root, manifest);
+      const remotePlan = buildMirrorPlan(await this.client.getResources());
+      if ((manifest.pendingGroupCreates || []).length) {
+        blocked.push(...manifest.pendingGroupCreates.map((item) => ({
+          kind: "group-create",
+          id: item.id,
+          path: item.workspacePath,
+          reason: "canonical-group-not-visible"
+        })));
+      }
+      for (const request of (manifest.pendingGroupCreateRequests || []).slice()) {
+        const matches = remotePlan.groups.filter((item) => item.folder === request.folder && item.group &&
+          item.group.parentId === request.parentId && item.group.name === request.name && item.group.path === request.path);
+        const local = manifest.localGroups.find((group) => group.clientId === request.clientId);
+        if (matches.length === 1 && local) {
+          await this.resolveLocalGroup(root, manifest, local, matches[0]);
+          groupsAdopted++;
+        } else {
+          blocked.push({
+            kind: "group-create-request",
+            operationId: request.operationId,
+            path: request.workspacePath,
+            candidates: matches.map((item) => item.group && item.group.id).filter(Boolean),
+            reason: matches.length ? "multiple-matches" : "no-unique-match"
+          });
+        }
+      }
+
+      const knownIds = new Set([
+        ...(manifest.entries || []).map((item) => item.id),
+        ...(manifest.pendingCreates || []).map((item) => item.id)
+      ]);
+      for (const request of (manifest.pendingCreateRequests || []).slice()) {
+        const identityMatches = remotePlan.files.filter((item) =>
+          item.folder === request.folder && item.entity && item.entity.groupId === request.groupId &&
+          item.entity.name === request.name &&
+          resourceIdentityValue(item.folder, item.entity) === request.resourceKey
+        );
+        const semanticMatches = [];
+        for (const item of identityMatches) {
+          if (!item.entity.id || knownIds.has(item.entity.id)) {
+            continue;
+          }
+          try {
+            const detail = await this.client.getFile(item.entity.id);
+            if (detail && detail.id === item.entity.id && matchesSemanticSignature(detail, request)) {
+              semanticMatches.push(detail);
+            }
+          } catch (error) {
+            this.output.appendLine(`[magic-api] 自动恢复无法读取候选 ${item.entity.id}：${messageOf(error)}`);
+          }
+        }
+        if (semanticMatches.length === 1) {
+          const candidate = semanticMatches[0];
+          manifest.pendingCreates.push({
+            id: candidate.id,
+            folder: request.folder,
+            groupId: request.groupId,
+            path: request.path,
+            metadataPath: request.metadataPath,
+            createdAt: request.requestedAt
+          });
+          manifest.pendingCreateRequests = manifest.pendingCreateRequests.filter(
+            (item) => item.operationId !== request.operationId
+          );
+          knownIds.add(candidate.id);
+          resourcesAdopted++;
+        } else {
+          blocked.push({
+            kind: "resource-create-request",
+            operationId: request.operationId,
+            path: request.path,
+            candidates: semanticMatches.map((item) => item.id),
+            reason: semanticMatches.length ? "multiple-matches" : "no-unique-match"
+          });
+        }
+      }
+      manifest.generatedAt = Date.now();
+      await this.writeManifest(root, manifest);
+      const deletesRecovered = await this.reconcilePendingDeletes(root, manifest);
+      if ((manifest.pendingDeletes || []).length) {
+        blocked.push(...manifest.pendingDeletes.map((item) => ({
+          kind: "delete",
+          id: item.id,
+          path: item.path,
+          reason: "remote-state-unknown"
+        })));
+      }
+      if (blocked.length) {
+        throw blockedOperationError(
+          "存在无法唯一复核的远端操作，自动恢复已停止；不会猜测资源身份。",
+          blocked
+        );
+      }
+      return {
+        root,
+        groupsAdopted,
+        resourcesAdopted,
+        deletesRecovered,
+        pendingCreates: (manifest.pendingCreates || []).length,
+        pendingGroupCreates: (manifest.pendingGroupCreates || []).length
+      };
+    });
+  }
+
+  async reconcileAutomatically() {
+    const recovery = await this.recoverAutomatically();
+    let root = await this.resolveRoot();
+    let manifest = await this.readManifest(root);
+    if ((manifest.pendingCreates || []).length) {
+      if ((manifest.localGroups || []).length || (manifest.pendingGroupCreates || []).length) {
+        throw blockedOperationError(
+          "服务端新增等待 canonical 恢复时仍存在本地分组计划，无法确定安全顺序。",
+          { pendingCreates: manifest.pendingCreates, localGroups: manifest.localGroups }
+        );
+      }
+      await this.pullAll({ full: false, force: true, source: "cli-recovery" });
+    }
+    const pushed = await this.pushChanged({ autoApprove: true, source: "cli" });
+    if (pushed.failed || pushed.conflicts || (pushed.pendingPaths && pushed.pendingPaths.length)) {
+      throw blockedOperationError("推送未完全完成，已保留本地与 journal 状态，未继续拉取覆盖。", pushed);
+    }
+    const pulled = await this.pullAll({ full: false, force: true, source: "cli" });
+    root = await this.resolveRoot();
+    manifest = await this.readManifest(root);
+    return {
+      root,
+      recovery,
+      pushed,
+      pulled,
+      manifestGeneratedAt: manifest.generatedAt
+    };
   }
 
   assertNoPendingCreates(manifest) {
@@ -3363,29 +3468,6 @@ async function listWorkspaceFiles(root) {
   }
 }
 
-async function copyDirectory(source, destination) {
-  await ensureDirectory(destination);
-  const entries = await fs.promises.readdir(source, { withFileTypes: true });
-  for (const entry of entries) {
-    const sourcePath = path.join(source, entry.name);
-    const destinationPath = path.join(destination, entry.name);
-    if (entry.isDirectory()) {
-      await copyDirectory(sourcePath, destinationPath);
-    } else if (entry.isFile()) {
-      await fs.promises.copyFile(sourcePath, destinationPath);
-    }
-  }
-}
-
-async function fileExists(filePath) {
-  try {
-    await fs.promises.access(filePath);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
 function hashText(text) {
   return crypto.createHash("sha256").update(text, "utf8").digest("hex");
 }
@@ -3571,6 +3653,13 @@ function messageOf(error) {
 
 function formatError(error) {
   return error && error.stack ? error.stack : messageOf(error);
+}
+
+function blockedOperationError(message, details) {
+  const error = new Error(message);
+  error.code = "blocked";
+  error.details = details;
+  return error;
 }
 
 module.exports = {

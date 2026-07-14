@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "magic-script",
+  "version": "1.2.0",
+  "files": {
+    "agents/openai.yaml": "fc3ff22c0fdbda9515bce0b125e259efd4520951fe61da0f21c33cd4b58d8e7f",
+    "references/authoring-checklist.md": "06995773d5c67c875e14433e113331d265189c9e40831e64ee35bc3028462b7b",
+    "references/magic-api-api.md": "8764d9be7c0d071951969b13e0f2560d9e196ae36d0698ba2d3ccd7d97f9bf0d",
+    "references/syntax.md": "da2d46b826e59ca10bc560fe0ac87ccedf65927a02040b2168f8b72ad2f59313",
+    "SKILL.md": "e526c75f6491d746e7ede88b5a9e82bf12b92bd4ddcd43e22fb922bcdcdf8dde"
+  }
+}

@@ -10,6 +10,8 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 
+process.stderr.write("[magic-api] magic-api-workspace.js 已弃用；请改用 magic-api.js 的 workspace/group/resource 命令。\n");
+
 async function main() {
   const [command, ...tokens] = process.argv.slice(2);
   const args = parseArgs(tokens);

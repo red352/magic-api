@@ -132,6 +132,7 @@ runIntegrationTests()
 
 async function runIntegrationTests() {
   let warningChoice = "删除服务端资源";
+  let warningCalls = 0;
   let configuredWorkspaceDir;
   const vscode = {
     TreeItem: class TreeItem {
@@ -154,6 +155,7 @@ async function runIntegrationTests() {
     TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
     window: {
       async showWarningMessage() {
+        warningCalls++;
         return warningChoice;
       },
       withProgress(options, task) {
@@ -226,6 +228,22 @@ async function runIntegrationTests() {
   const mirror = new MagicApiWorkspaceMirror({}, baseClient, output);
 
   try {
+    const conflictMirror = new MagicApiWorkspaceMirror({}, {
+      ...baseClient,
+      connectionStore: {
+        ...baseClient.connectionStore,
+        getBehaviorSetting() { return true; }
+      },
+      async getFile() { return { id: "conflict-id", updateTime: 20 }; }
+    }, output);
+    const warningsBeforeAutoApprove = warningCalls;
+    assert.strictEqual(await conflictMirror.confirmNoRemoteConflict({
+      id: "conflict-id",
+      path: "api/main/conflict.ms",
+      serverUpdateTime: 10
+    }, { autoApprove: true }), true);
+    assert.strictEqual(warningCalls, warningsBeforeAutoApprove);
+
     const emptyTreeProvider = new MagicApiTreeDataProvider({
       ...baseClient,
       async getResources() {
@@ -878,9 +896,9 @@ async function runIntegrationTests() {
           return Object.assign({}, requestCandidate.entity, { id, groupId: "api-user" });
         }
       };
-      warningChoice = "采用服务端资源 unknown-id";
-      const resolvedRequest = await requestMirror.resolvePendingCreateRequestsInteractively();
-      assert.deepStrictEqual(resolvedRequest, { adopted: 1, cleared: 0, unresolved: 0 });
+      const resolvedRequest = await requestMirror.recoverAutomatically();
+      assert.strictEqual(resolvedRequest.resourcesAdopted, 1);
+      assert.strictEqual(resolvedRequest.groupsAdopted, 0);
       const resolvedOnDisk = await requestMirror.readManifest(requestRoot);
       assert.strictEqual(resolvedOnDisk.pendingCreateRequests.length, 0);
       assert.deepStrictEqual(resolvedOnDisk.pendingCreates.map((item) => item.id), ["unknown-id"]);
@@ -957,6 +975,12 @@ async function runIntegrationTests() {
           return resourceTree();
         }
       };
+      await assert.rejects(
+        () => absentMirror.recoverAutomatically(),
+        (error) => error.code === "blocked" && Array.isArray(error.details) &&
+          error.details.some((item) => item.reason === "no-unique-match")
+      );
+      assert.strictEqual((await absentMirror.readManifest(requestRoot)).pendingCreateRequests.length, 1);
       warningChoice = "已确认未创建，允许重试";
       const clearedRequest = await absentMirror.resolvePendingCreateRequestsInteractively();
       assert.deepStrictEqual(clearedRequest, { adopted: 0, cleared: 1, unresolved: 0 });

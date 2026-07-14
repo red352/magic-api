@@ -27,6 +27,7 @@ const REDACTED_HEADERS = new Set([
 ]);
 
 if (require.main === module) {
+  process.stderr.write("[magic-api] magic-api-request.js 已弃用；请改用 magic-api.js request preview/send。\n");
   main().catch((error) => {
     process.stderr.write(`${JSON.stringify({ ok: false, error: error.message }, null, 2)}\n`);
     process.exitCode = 1;

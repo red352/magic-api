@@ -1,4 +1,4 @@
 interface:
   display_name: "magic-api 工作区"
-  short_description: "安全管理本地镜像并通过插件身份和宿主机授权访问实际接口"
-  default_prompt: "使用 $magic-api-workspace 安全管理本地资源；遇到沙箱阻断时申请最小宿主机权限，并通过当前工作区插件身份请求实际接口。"
+  short_description: "通过统一 CLI 自动管理、同步和验证 magic-api 工作区"
+  default_prompt: "Use $magic-api-workspace to plan, apply, synchronize, and verify the requested magic-api workspace changes."

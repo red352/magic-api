@@ -48,6 +48,12 @@ async function main() {
   await storeA.setServerUrl("http://workspace-a.example/magic/web/");
   assert.strictEqual(storeA.getServerUrl(), "http://workspace-a.example/magic/web");
   assert.deepStrictEqual(vscodeA.updates, [{ key: "serverUrl", value: "http://workspace-a.example/magic/web", target: 2 }]);
+  await storeA.setWorkspaceDir(".workspace/magic-api");
+  await storeA.setBehaviorSetting("syncOnSave", false);
+  assert.strictEqual(storeA.getWorkspaceDir(), ".workspace/magic-api");
+  assert.strictEqual(storeA.getBehaviorSetting("syncOnSave", true), false);
+  await assert.rejects(() => storeA.setServerUrl("file:///tmp/magic-api"), /HTTP\(S\)/);
+  await assert.rejects(() => storeA.setWorkspaceDir("../../outside"), /不能越出/);
 
   await storeA.setUsername("alice");
   assert.strictEqual(await storeA.getUsername(), "alice");

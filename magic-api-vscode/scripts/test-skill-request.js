@@ -8,6 +8,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 const { MagicApiClient } = require("../src/client");
 const { SkillRequestBridge } = require("../src/skillRequestBridge");
+const { callControl } = require("../ai-skills/magic-api-workspace/scripts/control-client");
 
 run().then(() => {
   process.stdout.write("skill request tests passed\n");
@@ -38,6 +39,7 @@ async function run() {
   const address = server.address();
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "magic-api-request-"));
   const cli = path.resolve(__dirname, "../ai-skills/magic-api-workspace/scripts/magic-api-request.js");
+  const unifiedCli = path.resolve(__dirname, "../ai-skills/magic-api-workspace/scripts/magic-api.js");
   let bridge;
   try {
     await fs.promises.mkdir(path.join(root, ".magic-api"), { recursive: true });
@@ -61,6 +63,12 @@ async function run() {
       getServerUrl() {
         return `http://127.0.0.1:${address.port}/magic/web`;
       },
+      getWorkspaceDir() {
+        return root;
+      },
+      getBehaviorSetting(_key, fallback) {
+        return fallback;
+      },
       async getToken() {
         return "workspace-secret";
       }
@@ -73,7 +81,10 @@ async function run() {
     });
     const descriptor = await bridge.refresh();
     assert.strictEqual(descriptor.requestBaseUrl, `http://127.0.0.1:${address.port}`);
+    assert.ok(descriptor.capabilities.includes("control-v1"));
     assert.ok(!JSON.stringify(descriptor).includes("workspace-secret"));
+    const connection = await callControl(root, "connection.show");
+    assert.strictEqual(connection.serverUrl, `http://127.0.0.1:${address.port}/magic/web`);
 
     const preview = await runCli(cli, [
       "--root", root, "--console-path", "/resource", "--method", "POST"
@@ -135,6 +146,40 @@ async function run() {
     ], { MAGIC_API_TOKEN: "workspace-secret" });
     assert.strictEqual(unsafeHeaders.code, 1);
     assert.match(unsafeHeaders.stderr, /禁止的请求头：magic-token/);
+
+    const driftArgs = [
+      "request", "send", "--root", root, "--url", "/api/drift", "--method", "POST"
+    ];
+    const driftPreview = await runCli(unifiedCli, driftArgs);
+    assert.strictEqual(driftPreview.code, 0, driftPreview.stderr);
+    const driftPlan = JSON.parse(driftPreview.stdout).result;
+    const driftFile = path.join(root, "drift.txt");
+    await fs.promises.writeFile(driftFile, "changed after preview", "utf8");
+    const driftApply = await runCli(unifiedCli, driftArgs.concat("--apply", "--plan-id", driftPlan.planId));
+    assert.strictEqual(driftApply.code, 1);
+    assert.match(driftApply.stderr, /状态不匹配/);
+    await fs.promises.rm(driftFile);
+
+    const unifiedArgs = [
+      "request", "send", "--root", root, "--url", "/api/unified", "--method", "POST"
+    ];
+    const unifiedPreview = await runCli(unifiedCli, unifiedArgs);
+    assert.strictEqual(unifiedPreview.code, 0, unifiedPreview.stderr);
+    const unifiedPlan = JSON.parse(unifiedPreview.stdout).result;
+    assert.match(unifiedPlan.planId, /^plan:/);
+    const beforeUnified = requests.length;
+    const unifiedSent = await runCli(unifiedCli, unifiedArgs.concat(
+      "--apply", "--plan-id", unifiedPlan.planId
+    ));
+    assert.strictEqual(unifiedSent.code, 0, unifiedSent.stderr);
+    assert.strictEqual(requests.length, beforeUnified + 1);
+    assert.strictEqual(requests.at(-1).headers["magic-token"], "workspace-secret");
+    const replay = await runCli(unifiedCli, unifiedArgs.concat(
+      "--apply", "--plan-id", unifiedPlan.planId
+    ));
+    assert.strictEqual(replay.code, 1);
+    assert.match(replay.stderr, /计划不存在|已经过期/);
+    assert.strictEqual(requests.length, beforeUnified + 1);
   } finally {
     if (bridge) {
       await bridge.stop();

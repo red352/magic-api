@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("crypto");
+const path = require("path");
 
 const DEFAULT_SERVER_URL = "http://localhost:9999/magic/web";
 const DEFAULT_WORKSPACE_DIR = ".magic-api-workspace";
@@ -31,6 +32,15 @@ class WorkspaceConnectionStore {
   async setServerUrl(serverUrl) {
     this.assertWorkspace();
     const value = normalizeServerUrl(serverUrl);
+    let parsed;
+    try {
+      parsed = new URL(value);
+    } catch (_error) {
+      throw new Error(`magicApi.serverUrl 非法：${serverUrl}`);
+    }
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.hash) {
+      throw new Error("magicApi.serverUrl 必须是无凭据和 fragment 的 HTTP(S) 地址。");
+    }
     await this.vscode.workspace
       .getConfiguration("magicApi")
       .update("serverUrl", value, this.vscode.ConfigurationTarget.Workspace);
@@ -42,10 +52,45 @@ class WorkspaceConnectionStore {
     return value || DEFAULT_WORKSPACE_DIR;
   }
 
+  async setWorkspaceDir(workspaceDir) {
+    this.assertWorkspace();
+    const value = String(workspaceDir || "").trim();
+    if (!value) {
+      throw new Error("magicApi.workspaceDir 不能为空。");
+    }
+    if (!path.isAbsolute(value)) {
+      const folder = this.vscode.workspace.workspaceFolders[0];
+      const workspaceRoot = path.resolve(folder.uri.fsPath);
+      const resolved = path.resolve(workspaceRoot, value);
+      const relative = path.relative(workspaceRoot, resolved);
+      if (relative.startsWith("..") || path.isAbsolute(relative)) {
+        throw new Error(`相对 magicApi.workspaceDir 不能越出当前工作区：${value}`);
+      }
+    }
+    await this.vscode.workspace
+      .getConfiguration("magicApi")
+      .update("workspaceDir", value, this.vscode.ConfigurationTarget.Workspace);
+    return value;
+  }
+
   getBehaviorSetting(key, fallback) {
     this.assertWorkspace();
     const value = this.vscode.workspace.getConfiguration("magicApi").get(key, fallback);
     return value === undefined ? fallback : value;
+  }
+
+  async setBehaviorSetting(key, value) {
+    this.assertWorkspace();
+    if (!["syncOnSave", "autoPullOnOpen", "checkConflicts"].includes(key)) {
+      throw new Error(`不支持的 magic-api 行为设置：${key}`);
+    }
+    if (typeof value !== "boolean") {
+      throw new Error(`${key} 必须是布尔值。`);
+    }
+    await this.vscode.workspace
+      .getConfiguration("magicApi")
+      .update(key, value, this.vscode.ConfigurationTarget.Workspace);
+    return value;
   }
 
   async getUsername() {

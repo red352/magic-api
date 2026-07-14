@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- 新增统一零依赖 Node.js CLI，覆盖工作区连接、认证状态、本地资源与嵌套分组 CRUD、校验、拉取、推送、自动 reconcile、journal 恢复、实际接口请求和 AI Skill 管理。
+- 新增绑定工作区文件状态、服务地址和操作参数的一次性计划协议；CLI 可自动执行明确计划中的远端删除和冲突覆盖，无法唯一复核时返回结构化阻塞信息。
+- 将 AI 请求桥扩展为工作区控制桥，继续由扩展读取当前工作区 SecretStorage Token，CLI 与日志均不可见凭据。
+- `magic-api-workspace` Skill 改为自动计划、apply、同步和 canonical 核对流程，不再要求用户手动点击推送或增量同步。
+- 新增 command schema 驱动的 CLI 文档检查和 Skill 托管清单；未修改的已安装 Skill 可安全自动更新，旧安装或人工修改版本会保留。
+
 ## 1.1.1
 
 - 修复从远端初始化后，历史 Task、Function、Script 等资源 path 带前导斜杠时被批量推送预检误判为“不规范”的问题；等价 path 现在使用统一语义身份参与幂等比较。

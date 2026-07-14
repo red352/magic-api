@@ -199,24 +199,32 @@ API 需要 `name`、`path`、`method`；function/component 需要 `name`、`path
     magic-api-workspace/
       SKILL.md
       agents/openai.yaml
+      references/
       scripts/
+        magic-api.js
+        command-schema.js
+        control-client.js
         magic-api-request.js
         magic-api-workspace.js
         request-bridge.js
         workspace-operations.js
 ```
 
-如果任一目标目录已存在，扩展会询问是否覆盖。`magic-script` 提供脚本语法与 API 规则；`magic-api-workspace` 内置零依赖 Node.js CLI，提供本地镜像查询、新增、修改、删除、校验、冲突检查、完成验证和实际接口请求规则。
+如果任一目标目录已存在，扩展会询问是否覆盖。之后扩展会根据 Skill 托管清单安全更新未被修改的版本；旧安装或人工修改版本会保留并提示合并。`magic-script` 提供脚本语法与 API 规则；`magic-api-workspace` 提供插件全部工作区操作能力。
 
-AI 工作区操作统一使用：
+<!-- magic-api-cli:start -->
+统一零依赖 Node.js CLI：
 
 ```bash
-node .codex/skills/magic-api-workspace/scripts/magic-api-workspace.js <command> --root <mirror-root>
+node .codex/skills/magic-api-workspace/scripts/magic-api.js <domain> <action> --root <mirror-root>
 ```
 
-可用命令为 `status/groups/list/get/ensure-group/create/update/delete/validate`。`ensure-group --type api --group-path admin/user` 可预览或暂存缺失分组；`create` 使用 `--group-path` 自动补齐分组，或用 `--group-id` 指向已有分组。变更命令默认只输出 JSON 预览，追加 `--apply` 才写本地镜像；CLI 只会为离线分组计划更新当前工作区 manifest，不读取凭据也不访问服务端。完成本地操作后仍由扩展执行批量推送、journal、冲突检查和删除确认。
+命令域：`connection`、`auth`、`workspace`、`group`、`resource`、`request`、`skill`。执行 `schema` 或 `--help --json` 可读取机器接口。
 
-实际接口请求使用 `magic-api-request.js`。脚本默认通过当前工作区的本地桥接，让扩展从该工作区 SecretStorage 读取 Token，并以 lowercase `magic-token` 请求头发送；Token 不会复制到环境变量、工作区或 CLI 输出。请求基址自动取 `magicApi.serverUrl` 去掉控制台 path 后的域名，例如 `http://localhost:9999/magic/web` 对应 `http://localhost:9999`。所有请求默认只预览，追加 `--send` 才发送；控制台仅开放查询白名单，写操作仍由扩展同步和 journal 管理。
+变更默认生成绑定当前工作区状态的计划；AI 使用返回的 `planId` 执行 apply。资源 CRUD 增加 `--sync` 后会自动完成校验、推送、reload 和 canonical 增量拉取，无需用户再点击同步命令。
+<!-- magic-api-cli:end -->
+
+控制桥只执行 schema 白名单内的操作。连接、认证、远端同步和 Skill 更新由扩展处理；Token 始终留在当前工作区 SecretStorage。控制台请求保持只读白名单，资源写操作使用带 journal 的专用命令。
 
 若 AI 沙箱无法读取当前用户临时目录中的插件桥接，Skill 会要求对同一条请求 CLI 自动发起最小范围的宿主机执行授权，而不是复制 Token 或切换到全局配置。实际是否免确认由运行平台的沙箱策略决定；Skill 不会绕过平台审批，也不会使用 `sudo` 或扩大到其他命令。
 
@@ -225,7 +233,7 @@ node .codex/skills/magic-api-workspace/scripts/magic-api-workspace.js <command> 
 - 支持离线新增嵌套分组；删除、移动和重命名分组仍需在 magic-api Web 工作台中完成。
 - 旧服务端无法区分“Task 未安装”和“尚无 Task 分组”，因此 Tasks 根节点始终显示；未安装 Task 插件时首次同步会保留本地计划并报告服务端不支持。
 - 移动和重命名资源暂不支持，不会自动解释为删除加新增。
-- 删除服务端资源必须通过资源树删除或批量推送的模态确认；未确认或服务端复核失败时会保留 manifest 恢复记录。
+- 资源树删除仍保留模态确认；统一 CLI 使用状态绑定计划自动执行明确列出的删除和冲突覆盖。服务端复核失败时保留 manifest 恢复记录并返回结构化阻塞信息。
 - manifest 的 serverUrl 与当前配置不一致时会阻止任何推送。
 - 不在工作区之间复制服务地址、用户名、Token、manifest 或 pending 恢复状态；没有打开工作区时扩展不会连接服务端。
 - 复杂元数据仍可通过高级 JSON 区域编辑。
